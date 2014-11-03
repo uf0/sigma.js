@@ -38,33 +38,36 @@
 <script src="../src/misc/sigma.misc.bindEvents.js"></script>
 <script src="../src/misc/sigma.misc.drawHovers.js"></script>
 <!-- END SIGMA IMPORTS -->
-<script src="../plugins/sigma.plugins.dragNodes/sigma.plugins.dragNodes.js"></script>
 <div id="container">
   <style>
+    body {
+      margin: 0;
+    }
     #graph-container {
+      top: 30%;
+      bottom: 30%;
+      left: 50px;
+      right: 50px;
+      position: absolute;
+      background: #fff;
+    }
+    #container {
+      position: relative;
       top: 0;
-      bottom: 0;
       left: 0;
       right: 0;
-      position: absolute;
-    }
-
-    #sidebar {
-      bottom: 0;
-      right: 0;
-      width: 200px;
-      height: 150px;
-      position: absolute;
-      background-color: #999;
-      padding: 10px;
+      height: 300%;
+      background: #ccc;
     }
   </style>
+  <div>Scroll down to see the graph</div>
   <div id="graph-container"></div>
-  <div id="sidebar">This area is not a drop target.</div>
 </div>
 <script>
 /**
- * This example shows how to use the dragNodes plugin.
+ * This example copies basic.html, but with the sigma container somewhere in a
+ * page such that the user has to scroll to manipulate it. This example is here
+ * to facilitate testing sigma integration in real-life web pages.
  */
 var i,
     s,
@@ -94,26 +97,10 @@ for (i = 0; i < E; i++)
     size: Math.random(),
     color: '#ccc'
   });
-sigma.renderers.def = sigma.renderers.canvas
+
 // Instantiate sigma:
 s = new sigma({
   graph: g,
   container: 'graph-container'
-});
-
-// Initialize the dragNodes plugin:
-var dragListener = sigma.plugins.dragNodes(s, s.renderers[0]);
-
-dragListener.bind('startdrag', function(event) {
-  console.log(event);
-});
-dragListener.bind('drag', function(event) {
-  console.log(event);
-});
-dragListener.bind('drop', function(event) {
-  console.log(event);
-});
-dragListener.bind('dragend', function(event) {
-  console.log(event);
 });
 </script>

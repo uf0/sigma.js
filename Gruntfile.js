@@ -68,8 +68,10 @@ module.exports = function(grunt) {
     'plugins.dragNodes',
     'plugins.filter',
     'plugins.neighborhoods',
-    'statistics.HITS',
-    'renderers.customShapes'
+    'renderers.customEdgeShapes',
+    'renderers.customShapes',
+    'renderers.edgeLabels',
+    'statistics.HITS'
   ];
 
   var pluginFiles = [],
@@ -83,7 +85,7 @@ module.exports = function(grunt) {
         gruntfile: dir + 'Gruntfile.js'
       };
     else
-      pluginFiles.push(dir + '*.js');
+      pluginFiles.push(dir + '**/*.js');
   });
 
   // Project configuration:
@@ -130,7 +132,7 @@ module.exports = function(grunt) {
       },
       plugins: {
         files: pluginFiles.reduce(function(res, path) {
-          var dest = 'build/' + path.replace(/\/\*\.js$/, '.min.js');
+          var dest = 'build/' + path.replace(/\/\*\*\/\*\.js$/, '.min.js');
           res[dest] = path;
           return res;
         }, {})
