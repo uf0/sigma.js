@@ -1,5 +1,5 @@
 {
-  "name": "sigma.js",
+  "name": "sigma-climaps",
   "version": "1.0.3",
   "main": [
     "build/sigma.js",
