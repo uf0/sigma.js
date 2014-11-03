@@ -3,7 +3,7 @@
   "version": "1.0.3",
   "main": [
     "build/sigma.js",
-    "build/sigma.plugins.js",
+    "build/sigma.plugins.js"
     ],
   "ignore": [
     ".DS_Store",
