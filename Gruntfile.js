@@ -149,9 +149,10 @@ module.exports = function(grunt) {
       plugins: {
         src: pluginFiles.map(function(path) {
 
-          var folder = path.replace(/\/\*\.js$/, '')
+          var folder = path.replace(/\/\*\*\/\*\.js$/, '')
           var file = folder.replace('plugins/', '') + '.js';
           var dest = folder + '/' + file;
+
           return dest;
         }),
         dest: 'build/sigma.plugins.js'
