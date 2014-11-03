@@ -439,9 +439,20 @@
    *
    * It is useful for quadtrees or WebGL processing, for instance.
    *
-   * @return {sigma} Returns the instance itself.
+   * @param  {?object}  options Eventually some options to give to the refresh
+   *                            method.
+   * @return {sigma}            Returns the instance itself.
+   *
+   * Recognized parameters:
+   * **********************
+   * Here is the exhaustive list of every accepted parameters in the "options"
+   * object:
+   *
+   *   {?boolean} skipIndexation A flag specifying wether or not the refresh
+   *                             function should reindex the graph in the
+   *                             quadtrees or not (default: false).
    */
-  sigma.prototype.refresh = function() {
+  sigma.prototype.refresh = function(options) {
     var i,
         l,
         k,
@@ -449,6 +460,8 @@
         c,
         bounds,
         prefix = 0;
+
+    options = options || {};
 
     // Call each middleware:
     a = this.middlewares || [];
@@ -484,28 +497,15 @@
           c.readPrefix
         );
 
-      // Find graph boundaries:
-      bounds = sigma.utils.getBoundaries(
-        this.graph,
-        c.readPrefix
-      );
+      if (!options.skipIndexation) {
+        // Find graph boundaries:
+        bounds = sigma.utils.getBoundaries(
+          this.graph,
+          c.readPrefix
+        );
 
-      // Refresh quadtree:
-      c.quadtree.index(this.graph.nodes(), {
-        prefix: c.readPrefix,
-        bounds: {
-          x: bounds.minX,
-          y: bounds.minY,
-          width: bounds.maxX - bounds.minX,
-          height: bounds.maxY - bounds.minY
-        }
-      });
-
-      // Refresh edgequadtree:
-      if (c.edgequadtree !== undefined && c.settings('drawEdges') &&
-        c.settings('enableEdgeHovering')) {
-
-        c.edgequadtree.index(this.graph, {
+        // Refresh quadtree:
+        c.quadtree.index(this.graph.nodes(), {
           prefix: c.readPrefix,
           bounds: {
             x: bounds.minX,
@@ -514,6 +514,23 @@
             height: bounds.maxY - bounds.minY
           }
         });
+
+        // Refresh edgequadtree:
+        if (
+          c.edgequadtree !== undefined &&
+          c.settings('drawEdges') &&
+          c.settings('enableEdgeHovering')
+        ) {
+          c.edgequadtree.index(this.graph, {
+            prefix: c.readPrefix,
+            bounds: {
+              x: bounds.minX,
+              y: bounds.minY,
+              width: bounds.maxX - bounds.minX,
+              height: bounds.maxY - bounds.minY
+            }
+          });
+        }
       }
     }
 
@@ -1907,44 +1924,6 @@
   };
 
   /**
-   * Return the euclidian distance between two points of a plane
-   * with an orthonormal basis.
-   *
-   * @param  {number} x1  The X coordinate of the first point.
-   * @param  {number} y1  The Y coordinate of the first point.
-   * @param  {number} x2  The X coordinate of the second point.
-   * @param  {number} y2  The Y coordinate of the second point.
-   * @return {number}     The euclidian distance.
-   */
-  sigma.utils.getDistance = function(x0, y0, x1, y1) {
-    return Math.sqrt(Math.pow(x1 - x0, 2) + Math.pow(y1 - y0, 2));
-  };
-
-  /**
-    * Check if a point is on a line segment.
-    *
-    * @param  {number} x       The X coordinate of the point to check.
-    * @param  {number} y       The Y coordinate of the point to check.
-    * @param  {number} x1      The X coordinate of the line start point.
-    * @param  {number} y1      The Y coordinate of the line start point.
-    * @param  {number} x2      The X coordinate of the line end point.
-    * @param  {number} y2      The Y coordinate of the line end point.
-    * @param  {number} epsilon The precision (consider the line thickness).
-    * @return {boolean}        True if point is "close to" the line
-    *                          segment, false otherwise.
-  */
-  sigma.utils.isPointOnSegment = function(x, y, x1, y1, x2, y2, epsilon) {
-    // http://stackoverflow.com/a/328122
-    var crossProduct = Math.abs((y - y1) * (x2 - x1) - (x - x1) * (y2 - y1)),
-        d = sigma.utils.getDistance(x1, y1, x2, y2),
-        nCrossProduct = crossProduct / d; // normalized cross product
-
-    return (nCrossProduct < epsilon &&
-     Math.min(x1, x2) <= x && x <= Math.max(x1, x2) &&
-     Math.min(y1, y2) <= y && y <= Math.max(y1, y2));
-  };
-
-  /**
    * Return the control point coordinates for a quadratic bezier curve.
    *
    * @param  {number} x1  The X coordinate of the start point.
@@ -1961,25 +1940,6 @@
   };
 
   /**
-   * Return the coordinates of the two control points for a self loop (i.e.
-   * where the start point is also the end point) computed as a cubic bezier
-   * curve.
-   *
-   * @param  {number} x    The X coordinate of the node.
-   * @param  {number} y    The Y coordinate of the node.
-   * @param  {number} size The node size.
-   * @return {x1,y1,x2,y2} The coordinates of the two control points.
-   */
-  sigma.utils.getSelfLoopControlPoints = function(x , y, size) {
-    return {
-      x1: x - size * 7,
-      y1: y,
-      x2: x,
-      y2: y + size * 7
-    };
-  };
-
-  /**
     * Compute the coordinates of the point positioned
     * at length t in the quadratic bezier curve.
     *
@@ -1987,17 +1947,17 @@
     *                     the point in the curve from the context point.
     * @param  {number} x1 The X coordinate of the context point.
     * @param  {number} y1 The Y coordinate of the context point.
-    * @param  {number} x2 The X coordinate of the end point.
-    * @param  {number} y2 The Y coordinate of the end point.
-    * @param  {number} cx The X coordinate of the control point.
-    * @param  {number} cy The Y coordinate of the control point.
-    * @return {object}    {x,y} The point at t.
+    * @param  {number} x2 The X coordinate of the ending point.
+    * @param  {number} y2 The Y coordinate of the ending point.
+    * @param  {number} xi The X coordinate of the control point.
+    * @param  {number} yi The Y coordinate of the control point.
+    * @return {object}    {x,y}.
   */
-  sigma.utils.getPointOnQuadraticCurve = function(t, x1, y1, x2, y2, cx, cy) {
+  sigma.utils.getPointOnQuadraticCurve = function(t, x1, y1, x2, y2, xi, yi) {
     // http://stackoverflow.com/a/5634528
     return {
-      x: Math.pow(1 - t, 2) * x1 + 2 * (1 - t) * t * cx + Math.pow(t, 2) * x2,
-      y: Math.pow(1 - t, 2) * y1 + 2 * (1 - t) * t * cy + Math.pow(t, 2) * y2
+      x: Math.pow(1 - t, 2) * x1 + 2 * (1 - t) * t * xi + Math.pow(t, 2) * x2,
+      y: Math.pow(1 - t, 2) * y1 + 2 * (1 - t) * t * yi + Math.pow(t, 2) * y2
     };
   };
 
@@ -2032,6 +1992,126 @@
     };
   };
 
+  /**
+   * Return the coordinates of the two control points for a self loop (i.e.
+   * where the start point is also the end point) computed as a cubic bezier
+   * curve.
+   *
+   * @param  {number} x    The X coordinate of the node.
+   * @param  {number} y    The Y coordinate of the node.
+   * @param  {number} size The node size.
+   * @return {x1,y1,x2,y2} The coordinates of the two control points.
+   */
+  sigma.utils.getSelfLoopControlPoints = function(x , y, size) {
+    return {
+      x1: x - size * 7,
+      y1: y,
+      x2: x,
+      y2: y + size * 7
+    };
+  };
+
+  /**
+   * Return the euclidian distance between two points of a plane
+   * with an orthonormal basis.
+   *
+   * @param  {number} x1  The X coordinate of the first point.
+   * @param  {number} y1  The Y coordinate of the first point.
+   * @param  {number} x2  The X coordinate of the second point.
+   * @param  {number} y2  The Y coordinate of the second point.
+   * @return {number}     The euclidian distance.
+   */
+  sigma.utils.getDistance = function(x0, y0, x1, y1) {
+    return Math.sqrt(Math.pow(x1 - x0, 2) + Math.pow(y1 - y0, 2));
+  };
+
+  /**
+   * Return the coordinates of the intersection points of two circles.
+   *
+   * @param  {number} x0  The X coordinate of center location of the first
+   *                      circle.
+   * @param  {number} y0  The Y coordinate of center location of the first
+   *                      circle.
+   * @param  {number} r0  The radius of the first circle.
+   * @param  {number} x1  The X coordinate of center location of the second
+   *                      circle.
+   * @param  {number} y1  The Y coordinate of center location of the second
+   *                      circle.
+   * @param  {number} r1  The radius of the second circle.
+   * @return {xi,yi}      The coordinates of the intersection points.
+   */
+  sigma.utils.getCircleIntersection = function(x0, y0, r0, x1, y1, r1) {
+    // http://stackoverflow.com/a/12219802
+    var a, dx, dy, d, h, rx, ry, x2, y2;
+
+    // dx and dy are the vertical and horizontal distances between the circle
+    // centers:
+    dx = x1 - x0;
+    dy = y1 - y0;
+
+    // Determine the straight-line distance between the centers:
+    d = Math.sqrt((dy * dy) + (dx * dx));
+
+    // Check for solvability:
+    if (d > (r0 + r1)) {
+        // No solution. circles do not intersect.
+        return false;
+    }
+    if (d < Math.abs(r0 - r1)) {
+        // No solution. one circle is contained in the other.
+        return false;
+    }
+
+    //'point 2' is the point where the line through the circle intersection
+    // points crosses the line between the circle centers.
+
+    // Determine the distance from point 0 to point 2:
+    a = ((r0 * r0) - (r1 * r1) + (d * d)) / (2.0 * d);
+
+    // Determine the coordinates of point 2:
+    x2 = x0 + (dx * a / d);
+    y2 = y0 + (dy * a / d);
+
+    // Determine the distance from point 2 to either of the intersection
+    // points:
+    h = Math.sqrt((r0 * r0) - (a * a));
+
+    // Determine the offsets of the intersection points from point 2:
+    rx = -dy * (h / d);
+    ry = dx * (h / d);
+
+    // Determine the absolute intersection points:
+    var xi = x2 + rx;
+    var xi_prime = x2 - rx;
+    var yi = y2 + ry;
+    var yi_prime = y2 - ry;
+
+    return {xi: xi, xi_prime: xi_prime, yi: yi, yi_prime: yi_prime};
+  };
+
+  /**
+    * Check if a point is on a line segment.
+    *
+    * @param  {number} x       The X coordinate of the point to check.
+    * @param  {number} y       The Y coordinate of the point to check.
+    * @param  {number} x1      The X coordinate of the line start point.
+    * @param  {number} y1      The Y coordinate of the line start point.
+    * @param  {number} x2      The X coordinate of the line end point.
+    * @param  {number} y2      The Y coordinate of the line end point.
+    * @param  {number} epsilon The precision (consider the line thickness).
+    * @return {boolean}        True if point is "close to" the line
+    *                          segment, false otherwise.
+  */
+  sigma.utils.isPointOnSegment = function(x, y, x1, y1, x2, y2, epsilon) {
+    // http://stackoverflow.com/a/328122
+    var crossProduct = Math.abs((y - y1) * (x2 - x1) - (x - x1) * (y2 - y1)),
+        d = sigma.utils.getDistance(x1, y1, x2, y2),
+        nCrossProduct = crossProduct / d; // normalized cross product
+
+    return (nCrossProduct < epsilon &&
+     Math.min(x1, x2) <= x && x <= Math.max(x1, x2) &&
+     Math.min(y1, y2) <= y && y <= Math.max(y1, y2));
+  };
 
   /**
     * Check if a point is on a quadratic bezier curve segment with a thickness.
@@ -2643,6 +2723,10 @@
      * *******************
      */
     // {string}
+    defaultNodeType: 'def',
+    // {string}
+    defaultEdgeType: 'def',
+    // {string}
     defaultLabelColor: '#000',
     // {string}
     defaultEdgeColor: '#000',
@@ -2653,6 +2737,8 @@
     // {string} Indicates how to choose the edges color. Available values:
     //          "source", "target", "default"
     edgeColor: 'source',
+    // {number} Defines the minimal edge's arrow display size.
+    minArrowSize: 0,
     // {string}
     font: 'arial',
     // {string} Example: 'bold'
@@ -2713,9 +2799,10 @@
     // {booleans} The different drawing modes:
     //           false: Layered not displayed.
     //           true: Layered displayed.
-    drawLabels: true,
     drawEdges: true,
     drawNodes: true,
+    drawLabels: true,
+    drawEdgeLabels: false,
     // {boolean} Indicates if the edges must be drawn in several frames or in
     //           one frame, as the nodes and labels are drawn.
     batchEdgesDrawing: false,
@@ -2750,8 +2837,6 @@
     maxEdgeSize: 1,
     minNodeSize: 1,
     maxNodeSize: 8,
-    // {number} Defines the minimal edge's arrow display size.
-    minArrowSize: 0,
 
 
 
@@ -2764,6 +2849,8 @@
     touchEnabled: true,
     // {boolean}
     mouseEnabled: true,
+    // {boolean}
+    mouseWheelEnabled: true,
     // {boolean}
     doubleClickEnabled: true,
     // {boolean} Defines whether the custom events such as "clickNode" can be
@@ -5832,6 +5919,8 @@
 
         _isMouseDown,
         _isMoving,
+        _hasDragged,
+        _downStartTime,
         _movingTimeoutId;
 
     sigma.classes.dispatcher.extend(this);
@@ -5894,6 +5983,7 @@
 
       if (_settings('mouseEnabled') && _isMouseDown) {
         _isMoving = true;
+        _hasDragged = true;
 
         if (_movingTimeoutId)
           clearTimeout(_movingTimeoutId);
@@ -6008,6 +6098,9 @@
         _startMouseX = sigma.utils.getX(e);
         _startMouseY = sigma.utils.getY(e);
 
+        _hasDragged = false;
+        _downStartTime = (new Date()).getTime();
+
         switch (e.which) {
           case 2:
             // Middle mouse button pressed
@@ -6072,7 +6165,10 @@
           ctrlKey: e.ctrlKey,
           metaKey: e.metaKey,
           altKey: e.altKey,
-          shiftKey: e.shiftKey
+          shiftKey: e.shiftKey,
+          isDragging:
+            (((new Date()).getTime() - _downStartTime) > 100) &&
+            _hasDragged
         });
 
       if (e.preventDefault)
@@ -6144,7 +6240,7 @@
           ratio,
           animation;
 
-      if (_settings('mouseEnabled')) {
+      if (_settings('mouseEnabled') && _settings('mouseWheelEnabled')) {
         ratio = sigma.utils.getDelta(e) > 0 ?
           1 / _settings('zoomingRatio') :
           _settings('zoomingRatio');
@@ -6699,13 +6795,6 @@
       );
     }
 
-    // Bind resize:
-    window.addEventListener(
-      'resize',
-      this.boundResize = this.resize.bind(this),
-      false
-    );
-
     // Deal with sigma events:
     sigma.misc.bindEvents.call(this, this.options.prefix);
     sigma.misc.drawHovers.call(this, this.options.prefix);
@@ -6746,9 +6835,13 @@
         drawEdges = this.settings(options, 'drawEdges'),
         drawNodes = this.settings(options, 'drawNodes'),
         drawLabels = this.settings(options, 'drawLabels'),
+        drawEdgeLabels = this.settings(options, 'drawEdgeLabels'),
         embedSettings = this.settings.embedObjects(options, {
           prefix: this.options.prefix
         });
+
+    // Call the resize function:
+    this.resize(false);
 
     // Check the 'hideEdgesOnMove' setting:
     if (this.settings(options, 'hideEdgesOnMove'))
@@ -6817,13 +6910,33 @@
           renderers = sigma.canvas.edges;
           for (i = start; i < end; i++) {
             o = edges[i];
-            (renderers[o.type] || renderers.def)(
+            (renderers[
+              o.type || this.settings(options, 'defaultEdgeType')
+            ] || renderers.def)(
               o,
               graph.nodes(o.source),
               graph.nodes(o.target),
               this.contexts.edges,
               embedSettings
             );
+          }
+
+          // Draw edge labels:
+          if (drawEdgeLabels) {
+            renderers = sigma.canvas.edges.labels;
+            for (i = start; i < end; i++) {
+              o = edges[i];
+              if (!o.hidden)
+                (renderers[
+                  o.type || this.settings(options, 'defaultEdgeType')
+                ] || renderers.def)(
+                  o,
+                  graph.nodes(o.source),
+                  graph.nodes(o.target),
+                  this.contexts.labels,
+                  embedSettings
+                );
+            }
           }
 
           // Restore original globalCompositeOperation:
@@ -6848,13 +6961,32 @@
         renderers = sigma.canvas.edges;
         for (a = this.edgesOnScreen, i = 0, l = a.length; i < l; i++) {
           o = a[i];
-          (renderers[o.type] || renderers.def)(
+          (renderers[
+            o.type || this.settings(options, 'defaultEdgeType')
+          ] || renderers.def)(
             o,
             graph.nodes(o.source),
             graph.nodes(o.target),
             this.contexts.edges,
             embedSettings
           );
+        }
+
+        // Draw edge labels:
+        // - No batching
+        if (drawEdgeLabels) {
+          renderers = sigma.canvas.edges.labels;
+          for (a = this.edgesOnScreen, i = 0, l = a.length; i < l; i++)
+            if (!a[i].hidden)
+              (renderers[
+                a[i].type || this.settings(options, 'defaultEdgeType')
+              ] || renderers.def)(
+                a[i],
+                graph.nodes(a[i].source),
+                graph.nodes(a[i].target),
+                this.contexts.labels,
+                embedSettings
+              );
         }
       }
     }
@@ -6865,7 +6997,9 @@
       renderers = sigma.canvas.nodes;
       for (a = this.nodesOnScreen, i = 0, l = a.length; i < l; i++)
         if (!a[i].hidden)
-          (renderers[a[i].type] || renderers.def)(
+          (renderers[
+            a[i].type || this.settings(options, 'defaultNodeType')
+          ] || renderers.def)(
             a[i],
             this.contexts.nodes,
             embedSettings
@@ -6878,7 +7012,9 @@
       renderers = sigma.canvas.labels;
       for (a = this.nodesOnScreen, i = 0, l = a.length; i < l; i++)
         if (!a[i].hidden)
-          (renderers[a[i].type] || renderers.def)(
+          (renderers[
+            a[i].type || this.settings(options, 'defaultNodeType')
+          ] || renderers.def)(
             a[i],
             this.contexts.labels,
             embedSettings
@@ -6981,9 +7117,6 @@
   sigma.renderers.canvas.prototype.kill = function() {
     var k,
         captor;
-
-    // Unbind resize:
-    window.removeEventListener('resize', this.boundResize);
 
     // Kill captors:
     while ((captor = this.captors.pop()))
@@ -7117,13 +7250,6 @@
       );
     }
 
-    // Bind resize:
-    window.addEventListener(
-      'resize',
-      this.boundResize = this.resize.bind(this),
-      false
-    );
-
     // Deal with sigma events:
     sigma.misc.bindEvents.call(this, this.camera.prefix);
     sigma.misc.drawHovers.call(this, this.camera.prefix);
@@ -7155,6 +7281,7 @@
         i,
         l,
         k,
+        type,
         renderer,
         graph = this.graph,
         options = sigma.utils.extend(options, this.options);
@@ -7168,7 +7295,8 @@
 
     // Sort edges and nodes per types:
     for (a = graph.edges(), i = 0, l = a.length; i < l; i++) {
-      k = (a[i].type && sigma.webgl.edges[a[i].type]) ? a[i].type : 'def';
+      type = a[i].type || this.settings(options, 'defaultEdgeType');
+      k = (type && sigma.webgl.edges[type]) ? type : 'def';
 
       if (!this.edgeFloatArrays[k])
         this.edgeFloatArrays[k] = {
@@ -7179,7 +7307,8 @@
     }
 
     for (a = graph.nodes(), i = 0, l = a.length; i < l; i++) {
-      k = (a[i].type && sigma.webgl.nodes[a[i].type]) ? k : 'def';
+      type = a[i].type || this.settings(options, 'defaultNodeType');
+      k = (type && sigma.webgl.nodes[type]) ? type : 'def';
 
       if (!this.nodeFloatArrays[k])
         this.nodeFloatArrays[k] = {
@@ -7276,12 +7405,15 @@
         drawEdges = this.settings(options, 'drawEdges'),
         drawNodes = this.settings(options, 'drawNodes');
 
+    // Call the resize function:
+    this.resize(false);
+
     // Check the 'hideEdgesOnMove' setting:
     if (this.settings(options, 'hideEdgesOnMove'))
       if (this.camera.isAnimated || this.camera.isMoving)
         drawEdges = false;
 
-    // Clear and resize canvases:
+    // Clear canvases:
     this.clear();
 
     // Translate matrix to [width/2, height/2]:
@@ -7342,7 +7474,10 @@
                   width: this.width,
                   height: this.height,
                   ratio: this.camera.ratio,
-                  scalingRatio: this.settings('webglOversamplingRatio'),
+                  scalingRatio: this.settings(
+                    options,
+                    'webglOversamplingRatio'
+                  ),
                   start: start,
                   count: end - start
                 }
@@ -7402,7 +7537,7 @@
                 width: this.width,
                 height: this.height,
                 ratio: this.camera.ratio,
-                scalingRatio: this.settings('webglOversamplingRatio')
+                scalingRatio: this.settings(options, 'webglOversamplingRatio')
               }
             );
           }
@@ -7435,7 +7570,7 @@
               width: this.width,
               height: this.height,
               ratio: this.camera.ratio,
-              scalingRatio: this.settings('webglOversamplingRatio')
+              scalingRatio: this.settings(options, 'webglOversamplingRatio')
             }
           );
         }
@@ -7468,8 +7603,10 @@
       for (i = 0, l = a.length; i < l; i++)
         if (!a[i].hidden)
           (
-            sigma.canvas.labels[a[i].type] ||
-            sigma.canvas.labels.def
+            sigma.canvas.labels[
+              a[i].type ||
+              this.settings(options, 'defaultNodeType')
+            ] || sigma.canvas.labels.def
           )(a[i], this.contexts.labels, o);
     }
 
@@ -7605,9 +7742,6 @@
   sigma.renderers.webgl.prototype.kill = function() {
     var k,
         captor;
-
-    // Unbind resize:
-    window.removeEventListener('resize', this.boundResize);
 
     // Kill captors:
     while ((captor = this.captors.pop()))
@@ -10721,6 +10855,8 @@
           target,
           hoveredNode,
           hoveredEdge,
+          defaultNodeType = self.settings('defaultNodeType'),
+          defaultEdgeType = self.settings('defaultEdgeType'),
           nodeRenderers = sigma.canvas.hovers,
           edgeRenderers = sigma.canvas.edgehovers,
           extremitiesRenderers = sigma.canvas.extremities,
@@ -10735,7 +10871,11 @@
         Object.keys(hoveredNodes).length
       ) {
         hoveredNode = hoveredNodes[Object.keys(hoveredNodes)[0]];
-        (nodeRenderers[hoveredNode.type] || nodeRenderers.def)(
+        (
+          nodeRenderers[hoveredNode.type] ||
+          nodeRenderers[defaultNodeType] ||
+          nodeRenderers.def
+        )(
           hoveredNode,
           self.contexts.hover,
           embedSettings
@@ -10748,7 +10888,11 @@
         !embedSettings('singleHover')
       )
         for (k in hoveredNodes)
-          (nodeRenderers[hoveredNodes[k].type] || nodeRenderers.def)(
+          (
+            nodeRenderers[hoveredNodes[k].type] ||
+            nodeRenderers[defaultNodeType] ||
+            nodeRenderers.def
+          )(
             hoveredNodes[k],
             self.contexts.hover,
             embedSettings
@@ -10767,6 +10911,7 @@
         if (! hoveredEdge.hidden) {
           (
             edgeRenderers[hoveredEdge.type] ||
+            edgeRenderers[defaultEdgeType] ||
             edgeRenderers.def
           ) (
             hoveredEdge,
@@ -10823,6 +10968,7 @@
           if (!hoveredEdge.hidden) {
             (
               edgeRenderers[hoveredEdge.type] ||
+              edgeRenderers[defaultEdgeType] ||
               edgeRenderers.def
             ) (
               hoveredEdge,
