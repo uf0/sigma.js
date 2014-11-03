@@ -144,6 +144,16 @@ module.exports = function(grunt) {
         src: coreJsFiles,
         dest: 'build/sigma.js'
       },
+      plugins: {
+        src: pluginFiles.map(function(path) {
+
+          var folder = path.replace(/\/\*\.js$/, '')
+          var file = folder.replace('plugins/', '') + '.js';
+          var dest = folder + '/' + file;
+          return dest;
+        }),
+        dest: 'build/sigma.plugins.js'
+      },
       require: {
         src: npmJsFiles,
         dest: 'build/sigma.require.js'
@@ -180,6 +190,7 @@ module.exports = function(grunt) {
   grunt.registerTask('default', ['closureLint', 'jshint', 'qunit', 'sed', 'grunt', 'uglify']);
   grunt.registerTask('release', ['closureLint', 'jshint', 'qunit', 'sed', 'grunt', 'uglify', 'zip']);
   grunt.registerTask('npmPrePublish', ['uglify:plugins', 'grunt', 'concat:require']);
+  grunt.registerTask('bower', ['grunt', 'concat:dist', 'concat:plugins']);
   grunt.registerTask('build', ['uglify', 'grunt', 'concat:require']);
   grunt.registerTask('test', ['qunit']);
 

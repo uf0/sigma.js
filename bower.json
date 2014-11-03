@@ -1,0 +1,22 @@
+
+{
+  "name": "sigma.js",
+  "version": "1.0.3",
+  "main": [
+    "build/sigma.js",
+    "build/sigma.plugins.js",
+    ],
+  "ignore": [
+    ".DS_Store",
+    ".git",
+    ".gitignore",
+    ".npmignore",
+    ".travis.yml",
+    "plugins",
+    "node_modules",
+    "package.json",
+    "src",
+    "test",
+    "build/plugins"
+  ]
+}
