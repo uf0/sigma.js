@@ -74,6 +74,10 @@ module.exports = function(grunt) {
     'statistics.HITS'
   ];
 
+  var pluginsClimapsFiles = [
+    'plugins/sigma.plugins.filter/sigma.plugins.filter.js'
+  ];
+
   var pluginFiles = [],
       subGrunts = {};
 
@@ -146,15 +150,8 @@ module.exports = function(grunt) {
         src: coreJsFiles,
         dest: 'build/sigma.js'
       },
-      plugins: {
-        src: pluginFiles.map(function(path) {
-
-          var folder = path.replace(/\/\*\*\/\*\.js$/, '')
-          var file = folder.replace('plugins/', '') + '.js';
-          var dest = folder + '/' + file;
-
-          return dest;
-        }),
+      climapsPlugins: {
+        src: pluginsClimapsFiles,
         dest: 'build/sigma.plugins.js'
       },
       require: {
@@ -193,7 +190,7 @@ module.exports = function(grunt) {
   grunt.registerTask('default', ['closureLint', 'jshint', 'qunit', 'sed', 'grunt', 'uglify']);
   grunt.registerTask('release', ['closureLint', 'jshint', 'qunit', 'sed', 'grunt', 'uglify', 'zip']);
   grunt.registerTask('npmPrePublish', ['uglify:plugins', 'grunt', 'concat:require']);
-  grunt.registerTask('bower', ['grunt', 'concat:dist', 'concat:plugins']);
+  grunt.registerTask('climaps', ['concat:dist', 'concat:climapsPlugins']);
   grunt.registerTask('build', ['uglify', 'grunt', 'concat:require']);
   grunt.registerTask('test', ['qunit']);
 
